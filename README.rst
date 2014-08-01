@@ -51,7 +51,8 @@ Client methods:
 
 ``send_command(cmd, *args, body=None)``
     A coroutine that sends command to the beanstalkd server and waits for the
-    reply.
+    reply. You must not put length of the body in ``args`` as it will be
+    added automatially.
 
     Reply is returned as object from ``aiobeanstalk.packets`` or
     ``aiobeanstalk.exceptions``. Exceptions are returned rather than raised,
