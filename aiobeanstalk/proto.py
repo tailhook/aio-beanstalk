@@ -54,7 +54,7 @@ class Client(object):
                     raise EOFError()
                 cmd, *args = header.split()
                 Packet = BasePacket.registry[cmd]
-                if Packet.fields[-1][1] == bytes:
+                if Packet.fields and Packet.fields[-1][1] == bytes:
                     blen = int(args[-1])
                     args[-1] = yield from self._reader.readexactly(blen)
                     endline = yield from self._reader.readexactly(2)
