@@ -31,6 +31,11 @@ class BasePacket(metaclass=BasePacketMeta):
                 all(getattr(self, a) == getattr(self, a)
                     for a, _ in self.fields))
 
+    def __repr__(self):
+        return '<{} {}>'.format(self.__class__.__name__,
+            ', '.join('{}={}'.format(a, getattr(self, a))
+                      for a, _ in self.fields))
+
 
 class Inserted(BasePacket):
     token = "INSERTED"
