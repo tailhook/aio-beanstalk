@@ -54,9 +54,9 @@ Client methods:
     reply.
 
     Reply is returned as object from ``aiobeanstalk.packets`` or
-    ``aiobeanstalk.execptions``. Exceptions are returned rather than raised,
-    so you must always check result. ``EOFError`` may be raised in the case
-    connection is closed before receiving a reply.
+    ``aiobeanstalk.exceptions``. Exceptions are returned rather than raised,
+    so you must always check result. But, ``EOFError`` may be *raised* in the
+    case connection is closed before receiving a reply.
 
     It's *safe* to call it from many coroutines simultaneously, requests will
     be pipelined. However, it's probably useless to call any command
