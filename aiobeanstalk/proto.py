@@ -23,7 +23,7 @@ class Client(object):
         reader, writer = yield from asyncio.open_connection(host, port)
         return Client(reader, writer)
 
-    @asyncio.coroutine
+    #  It's not a coroutine, it must return future to allow pipelining
     def send_command(self, *args, body=None):
         chunks = []
         for arg in args:
@@ -72,3 +72,6 @@ class Client(object):
 
     def close(self):
         self._writer.transport.close()
+
+    def wait_closed(self):
+        return asyncio.shield(self._task)
