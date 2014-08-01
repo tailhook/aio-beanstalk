@@ -56,8 +56,9 @@ class Client(object):
                 Packet = BasePacket.registry[cmd]
                 if Packet.fields[-1][1] == bytes:
                     blen = int(args[-1])
-                    args[-1] = self._reader.readexactly(blen)
-                    if self._reader.readexactly(2) != '\r\n':
+                    args[-1] = yield from self._reader.readexactly(blen)
+                    endline = yield from self._reader.readexactly(2)
+                    if endline != b'\r\n':
                         raise ProtocolError()
                 if len(args) != len(Packet.fields):
                     raise ProtocolError()
