@@ -1,8 +1,12 @@
 import asyncio
+import logging
 from collections import deque
 
 from .packets import BasePacket
 from . import exceptions  # flake8: noqa
+
+
+log = logging.getLogger(__name__)
 
 
 class ProtocolError(Exception):
@@ -28,6 +32,7 @@ class Client(object):
 
     #  It's not a coroutine, it must return future to allow pipelining
     def send_command(self, *args, body=None):
+        log.debug("Sending %r (%r)", args, body)
         chunks = []
         for arg in args:
             arg = str(arg)
@@ -67,6 +72,7 @@ class Client(object):
                     raise ProtocolError()
                 packet = Packet(*(typ(x)
                                   for (_, typ), x in zip(Packet.fields, args)))
+                log.debug("Got reply %r", packet)
                 self._queue.popleft().set_result(packet)
         finally:
             self._writer.transport.close()
