@@ -229,14 +229,14 @@ class JsonTaskWorker(AbstractWorker):
 
 
 @asyncio.coroutine
-def run(options):
+def run(options, Worker=JsonTaskWorker):
     conn = [('localhost', 11300)]
     if options.connect:
         conn = [(h, int(p))
                 for h, p in (a.split(':', 1)
                              for a in options.connect)]
 
-    worker = JsonTaskWorker(conn, options.queues or ['default'],
+    worker = Worker(conn, options.queues or ['default'],
         retry_times=options.retry_times,
         retry_delay=options.retry_delay,
         concurrency=options.concurrency)
@@ -249,8 +249,7 @@ def run(options):
     yield from worker.wait_stopped()
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def worker_options(ap):
     ap.add_argument('-c', '--connect', metavar="HOST:PORT",
         help="Add beanstalkd server to connect to (repeatable)",
         default=[], action="append")
@@ -268,6 +267,11 @@ def main():
              " asyncio tasks in same thread and process"
              " (default %(default)d)",
         default=1, type=int)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    worker_options(ap)
     ap.add_argument('--log-level',
         help="The base log level",
         default="WARNING")
