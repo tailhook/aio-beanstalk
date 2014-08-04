@@ -33,7 +33,7 @@ class Caller(object):
 
     def _start_connection(self, host, port):
         ev = asyncio.Event()
-        self._events.add(ev)
+        self._events[host, port] = ev
         return asyncio.Task(self._reconnect(host, port, ev))
 
     @asyncio.coroutine
@@ -41,7 +41,7 @@ class Caller(object):
         try:
             while True:
                 cli = yield from self._connect(host, port)
-                self._clients[hort, port] = cli
+                self._clients[host, port] = cli
                 event.set()
                 try:
                     yield from cli.wait_closed()
@@ -79,7 +79,8 @@ class Caller(object):
         body = json.dumps(lst, ensure_ascii=False).encode('utf-8')
         while True:
             while not self._clients:
-                yield from asyncio.wait([ev.wait() for ev in self._events],
+                yield from asyncio.wait(
+                    [ev.wait() for ev in self._events.values()],
                     return_when=asyncio.FIRST_COMPLETED)
             cli = random.choice(list(self._clients.values()))
             try:
