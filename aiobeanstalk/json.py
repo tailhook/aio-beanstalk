@@ -101,34 +101,6 @@ class Caller(object):
             return 'beanstalk://{}:{}/{}'.format(
                 cli.host, cli.port, val.job_id)
 
-    @asyncio.coroutine
-    def kick(self, url):
-        pieces = urlparse(url)
-        host = pieces.hostname
-        port = pieces.port
-        job_id = int(pieces.path[1:])
-        while not self._clients.get((host, port)):
-            yield from self._events[host, port].wait()
-        res = yield from self._clients[host, port].send_command('kick-job',
-            job_id)
-        if isinstance(res, Exception):
-            raise res from None
-        return res
-
-    @asyncio.coroutine
-    def bury(self, url, priority=2**31):
-        pieces = urlparse(url)
-        host = pieces.hostname
-        port = pieces.port
-        job_id = int(pieces.path[1:])
-        while not self._clients.get((host, port)):
-            yield from self._events[host, port].wait()
-        res = yield from self._clients[host, port].send_command('bury',
-            job_id, priority)
-        if isinstance(res, Exception):
-            raise res from None
-        return res
-
     def close(self):
         for i in self._tasks:
             i.cancel()
