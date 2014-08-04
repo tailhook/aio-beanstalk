@@ -208,7 +208,7 @@ class JsonTaskWorker(AbstractWorker):
             raise Bury()
         try:
             log.info("Calling (id: %d) %s", reserved.job_id, sig)
-            self.tasks[name](*args, **kwargs)
+            yield from self.tasks[name](*args, **kwargs)
         except Exception:
             if stats['reserves'] > self.retry_times:
                 log.exception("Task %d has failed to much times. Burying...",
