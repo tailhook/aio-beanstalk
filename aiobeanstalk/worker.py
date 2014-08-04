@@ -229,7 +229,7 @@ class JsonTaskWorker(AbstractWorker):
 
 
 @asyncio.coroutine
-def run(options, Worker=JsonTaskWorker):
+def run(options, add_tasks, Worker=JsonTaskWorker):
     conn = [('localhost', 11300)]
     if options.connect:
         conn = [(h, int(p))
@@ -240,6 +240,7 @@ def run(options, Worker=JsonTaskWorker):
         retry_times=options.retry_times,
         retry_delay=options.retry_delay,
         concurrency=options.concurrency)
+    add_tasks(worker)
     asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,
         worker.terminate)
     asyncio.get_event_loop().add_signal_handler(signal.SIGINT,
@@ -269,7 +270,7 @@ def worker_options(ap):
         default=1, type=int)
 
 
-def main():
+def main(add_tasks=lambda w: None):
     ap = argparse.ArgumentParser()
     worker_options(ap)
     ap.add_argument('--log-level',
@@ -286,7 +287,7 @@ def main():
         )
     if not options.debug_asyncio:
         logging.getLogger('asyncio').setLevel(logging.WARNING)
-    asyncio.get_event_loop().run_until_complete(run(options))
+    asyncio.get_event_loop().run_until_complete(run(options, add_tasks))
 
 
 if __name__ == '__main__':
