@@ -4,6 +4,7 @@ import logging
 import json
 import time
 import random
+from urllib.parse import urlparse
 
 from .proto import Client
 from .exceptions import Draining
@@ -26,8 +27,8 @@ class Caller(object):
     def __init__(self, hosts):
         assert hosts, hosts
         self._hosts = hosts
-        self._clients = list()
-        self._events = set()
+        self._clients = {}
+        self._events = {}
         self._tasks = [self._start_connection(h, p) for h, p in hosts]
 
     def _start_connection(self, host, port):
@@ -40,7 +41,7 @@ class Caller(object):
         try:
             while True:
                 cli = yield from self._connect(host, port)
-                self._clients.append(cli)
+                self._clients[hort, port] = cli
                 event.set()
                 try:
                     yield from cli.wait_closed()
@@ -52,10 +53,8 @@ class Caller(object):
                     return
                 finally:
                     event.clear()
-                    try:
-                        self._clients.remove(cli)
-                    except ValueError:
-                        pass # May already be removed in case of draining
+                    # May already be removed in case of draining
+                    self._clients.pop((host, port), None)
         except Exception:
             log.exception("Abnormal termination for client thread")
 
@@ -82,7 +81,7 @@ class Caller(object):
             while not self._clients:
                 yield from asyncio.wait([ev.wait() for ev in self._events],
                     return_when=asyncio.FIRST_COMPLETED)
-            cli = random.choice(self._clients)
+            cli = random.choice(list(self._clients.values()))
             try:
                 # Must pipeline these two
                 use = cli.send_command('use', tube)
@@ -92,13 +91,38 @@ class Caller(object):
             except EOFError:
                 raise CallingError()
             if isinstance(val, Draining):
-                self._clients.remove(cli)
+                self._clients.pop((cli.host, cli.port), None)
                 log.info("Server is draining, trying next")
                 continue
             elif isinstance(val, Exception):
                 raise val
             assert isinstance(val, Inserted)
-            return val.job_id
+            return 'beanstalk://{}:{}/{}'.format(
+                cli.host, cli.port, val.job_id)
+
+    @asyncio.coroutine
+    def kick(self, url):
+        pieces = urlparse(url)
+        host, port = pieces.hostport
+        job_id = int(url.path[1:])
+        while not self._clients[host, port]:
+            yield from self._events[host, port].wait()
+        res = yield from self._clients[host, port].send_command('kick-job',
+            job_id)
+        if isinstance(res, Exception):
+            raise res
+
+    @asyncio.coroutine
+    def bury(self, url, priority=2**31):
+        pieces = urlparse(url)
+        host, port = pieces.hostport
+        job_id = int(url.path[1:])
+        while not self._clients[host, port]:
+            yield from self._events[host, port].wait()
+        res = yield from self._clients[host, port].send_command('bury',
+            job_id, priority)
+        if isinstance(res, Exception):
+            raise res
 
     def close(self):
         for i in self._tasks:

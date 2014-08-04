@@ -21,7 +21,10 @@ class Client(object):
     @asyncio.coroutine
     def connect(Client, host, port):
         reader, writer = yield from asyncio.open_connection(host, port)
-        return Client(reader, writer)
+        cli =  Client(reader, writer)
+        cli.host = host
+        cli.port = port
+        return cli
 
     #  It's not a coroutine, it must return future to allow pipelining
     def send_command(self, *args, body=None):
