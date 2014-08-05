@@ -46,8 +46,7 @@ class Caller(object):
                 try:
                     yield from cli.wait_closed()
                 except EOFError:
-                    fut = asyncio.Future()
-                    self._connectors.add(fut)
+                    self._events[host, port].clear()
                     continue
                 except asyncio.CancelledError:
                     return
