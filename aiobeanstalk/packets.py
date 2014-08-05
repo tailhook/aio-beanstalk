@@ -28,7 +28,7 @@ class BasePacket(metaclass=BasePacketMeta):
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
-                all(getattr(self, a) == getattr(self, a)
+                all(getattr(self, a) == getattr(other, a)
                     for a, _ in self.fields))
 
     def __repr__(self):
