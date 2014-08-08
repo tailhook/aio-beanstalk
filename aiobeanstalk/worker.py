@@ -97,8 +97,11 @@ class AbstractWorker(metaclass=abc.ABCMeta):
 
             while not self._terminating:
                 while len(self._tasks) >= self.concurrency:
-                    yield from asyncio.wait(self._tasks,
-                        return_when=asyncio.FIRST_COMPLETED)
+                    try:
+                        yield from asyncio.wait(self._tasks,
+                            return_when=asyncio.FIRST_COMPLETED)
+                    except asyncio.CancelledError:
+                        pass
                 try:
                     if self._tasks:
                         #  When there is a task we shouldn't wait forever
