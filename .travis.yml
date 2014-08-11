@@ -1,0 +1,12 @@
+language: python
+python:
+- "3.4"
+before_install:
+- sudo apt-get install beanstalkd
+- beanstalkd -l 127.0.0.1 -p 11300 &
+- sleep 3
+install:
+- pip install flake8
+script:
+- flake8 --ignore=E128 aiobeanstalk tests
+- python -m unittest discover -v
