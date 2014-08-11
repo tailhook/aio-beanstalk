@@ -9,6 +9,12 @@ from . import exceptions  # flake8: noqa
 log = logging.getLogger(__name__)
 
 
+def _convert(value, type):
+    if type is str:
+        return value.decode('utf-8')
+    return type(value)
+
+
 class ProtocolError(Exception):
     pass
 
@@ -70,7 +76,7 @@ class Client(object):
                         raise ProtocolError()
                 if len(args) != len(Packet.fields):
                     raise ProtocolError()
-                packet = Packet(*(typ(x)
+                packet = Packet(*(_convert(x, typ)
                                   for (_, typ), x in zip(Packet.fields, args)))
                 log.debug("Got reply %r", packet)
                 self._queue.popleft().set_result(packet)
