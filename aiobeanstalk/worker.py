@@ -73,7 +73,11 @@ class AbstractWorker(metaclass=abc.ABCMeta):
     def _client(self, host, port):
         try:
             while not self._terminating:
-                yield from self._connect(host, port)
+                try:
+                    yield from self._connect(host, port)
+                except (OSError, EOFError):
+                    log.info("Connection to %s:%d closed. Reconnecting",
+                        host, port, exc_info=1)
         except Exception:
             log.exception("Unexpected error in worker loop")
 

@@ -80,6 +80,11 @@ class Client(object):
                                   for (_, typ), x in zip(Packet.fields, args)))
                 log.debug("Got reply %r", packet)
                 self._queue.popleft().set_result(packet)
+        except EOFError:
+            log.debug("Connection to %s:%d closed", self.host, self.port)
+        except Exception:
+            log.exception("Unexpected error in connection %s:%d",
+                self.host, self.port, exc_info=1)
         finally:
             self._writer.transport.close()
             for f in self._queue:
