@@ -67,15 +67,17 @@ class Client(object):
                 if not header:  # connection closed
                     raise EOFError()
                 cmd, *args = header.split()
-                Packet = BasePacket.registry[cmd]
+                try:
+                    Packet = BasePacket.registry[cmd, len(args)]
+                except KeyError:
+                    raise ProtocolError("Unexpected response {!r} {}"
+                        .format(cmd, args))
                 if Packet.fields and Packet.fields[-1][1] == bytes:
                     blen = int(args[-1])
                     args[-1] = yield from self._reader.readexactly(blen)
                     endline = yield from self._reader.readexactly(2)
                     if endline != b'\r\n':
                         raise ProtocolError()
-                if len(args) != len(Packet.fields):
-                    raise ProtocolError()
                 packet = Packet(*(_convert(x, typ)
                                   for (_, typ), x in zip(Packet.fields, args)))
                 log.debug("Got reply %r", packet)

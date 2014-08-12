@@ -8,12 +8,14 @@ class BasePacketMeta(type):
     def __new__(cls, name, bases, dic):
         token = dic['token']
         if 'fields' not in dic:
+            numargs = 0
             dic['__slots__'] = ()
         else:
+            numargs = len(dic['fields'])
             dic['__slots__'] = tuple(map(itemgetter(0), dic['fields']))
         self = super().__new__(cls, name, bases, dic)
         if token is not None:
-            cls.registry[token.encode('ascii')] = self
+            cls.registry[token.encode('ascii'), numargs] = self
         return self
 
 
@@ -44,7 +46,6 @@ class Inserted(BasePacket):
 
 class Buried(BasePacket):
     token = "BURIED"
-    fields = [('job_id', int)]
 
 
 class Using(BasePacket):
