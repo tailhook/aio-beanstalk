@@ -24,17 +24,18 @@ class CallingError(Exception):
 
 class Caller(object):
 
-    def __init__(self, hosts):
+    def __init__(self, hosts, loop=None):
         assert hosts, hosts
         self._hosts = hosts
+        self._loop = loop or asyncio.get_event_loop()
         self._clients = {}
         self._events = {}
         self._tasks = [self._start_connection(h, p) for h, p in hosts]
 
     def _start_connection(self, host, port):
-        ev = asyncio.Event()
+        ev = asyncio.Event(loop=self._loop)
         self._events[host, port] = ev
-        return asyncio.Task(self._reconnect(host, port, ev))
+        return asyncio.Task(self._reconnect(host, port, ev), loop=self._loop)
 
     @asyncio.coroutine
     def _reconnect(self, host, port, event):
@@ -66,7 +67,8 @@ class Caller(object):
                 cli = yield from Client.connect(host, port)
             except OSError:
                 log.warning("Error establishing connection. Will retry...")
-                yield from asyncio.sleep(max(0, start + 0.1 - time.time()))
+                yield from asyncio.sleep(max(0, start + 0.1 - time.time()),
+                                         loop=self._loop)
             else:
                 return cli
 
@@ -80,7 +82,7 @@ class Caller(object):
             while not self._clients:
                 yield from asyncio.wait(
                     [ev.wait() for ev in self._events.values()],
-                    return_when=asyncio.FIRST_COMPLETED)
+                    return_when=asyncio.FIRST_COMPLETED, loop=self._loop)
             cli = random.choice(list(self._clients.values()))
             try:
                 # Must pipeline these two
@@ -104,12 +106,13 @@ class Caller(object):
         for i in self._tasks:
             i.cancel()
 
+    @asyncio.coroutine
     def wait_closed(self):
-        yield from asyncio.wait(self._tasks)
+        yield from asyncio.wait(self._tasks, loop=self._loop)
 
 
 @asyncio.coroutine
-def run(options):
+def run(options, loop=None):
     import yaml
     conn = [('localhost', 11300)]
     if options.connect:
@@ -119,7 +122,7 @@ def run(options):
     args = tuple(map(yaml.safe_load, options.arguments))
     kwargs = {k: yaml.safe_load(v) for k, v in options.kwargs}
 
-    caller = Caller(conn)
+    caller = Caller(conn, loop=loop)
     reserve = yield from caller.call(options.task_name, args, kwargs,
         priority=options.priority,
         ttr=options.ttr,
