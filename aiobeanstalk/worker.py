@@ -56,16 +56,18 @@ class Signature(object):
 
 class AbstractWorker(metaclass=abc.ABCMeta):
 
-    def __init__(self, servers, queues, concurrency):
+    def __init__(self, servers, queues, concurrency, loop=None):
         self.servers = servers
         self.queues = queues
         self.concurrency = concurrency
+        self._loop = loop or asyncio.get_event_loop()
+
 
     @asyncio.coroutine
     def start(self):
         self._terminating = False
-        self._connectors = [asyncio.Task(self._client(host, port))
-                            for (host, port) in self.servers]
+        self._connectors = [asyncio.Task(self._client(
+            host, port, loop=self._loop)) for (host, port) in self.servers]
         self._tasks = set()
         self._current_task = None
 
@@ -81,13 +83,15 @@ class AbstractWorker(metaclass=abc.ABCMeta):
         except Exception:
             log.exception("Unexpected error in worker loop")
 
+    @asyncio.coroutine
     def _connect(self, host, port):
         try:
             start = time.time()
             cli = yield from Client.connect(host, port)
         except OSError:
             log.warning("Error establishing connection. Will retry...")
-            yield from asyncio.sleep(max(0, start + 0.1 - time.time()))
+            yield from asyncio.sleep(max(0, start + 0.1 - time.time()),
+                                     loop=self._loop)
         log.info("Established connection to %s:%s", host, port)
         try:
             for q in self.queues:
@@ -103,9 +107,11 @@ class AbstractWorker(metaclass=abc.ABCMeta):
                 while len(self._tasks) >= self.concurrency:
                     try:
                         yield from asyncio.wait(self._tasks,
-                            return_when=asyncio.FIRST_COMPLETED)
+                            return_when=asyncio.FIRST_COMPLETED,
+                            loop=self._loop)
                     except asyncio.CancelledError:
                         pass
+
                 try:
                     if self._tasks:
                         #  When there is a task we shouldn't wait forever
@@ -119,7 +125,7 @@ class AbstractWorker(metaclass=abc.ABCMeta):
                         if isinstance(task, DeadlineSoon):
                             log.warning("Deadline is soon. Stopping accepting"
                                 " tasks for safety period 1 sec")
-                            yield asyncio.sleep(1)
+                            yield asyncio.sleep(1, loop=self._loop)
                             continue
                         if isinstance(task, TimedOut):
                             continue
@@ -130,7 +136,7 @@ class AbstractWorker(metaclass=abc.ABCMeta):
                 except EOFError:
                     break
         finally:
-            yield from asyncio.wait(self._tasks)
+            yield from asyncio.wait(self._tasks, loop=self._loop)
             cli.close()
 
     @asyncio.coroutine
@@ -149,7 +155,8 @@ class AbstractWorker(metaclass=abc.ABCMeta):
             #  Worker already have a task, probably from another client
             yield from self.release_task(cli, reserved, stats)
             return
-        task = asyncio.shield(self.task_wrapper(cli, reserved, stats))
+        task = asyncio.shield(self.task_wrapper(cli, reserved, stats),
+                              loop=self._loop)
         task.add_done_callback(self._tasks.remove)
         self._tasks.add(task)
 
@@ -175,10 +182,11 @@ class AbstractWorker(metaclass=abc.ABCMeta):
         else:
             yield from cli.send_command('delete', reserved.job_id)
 
+    @asyncio.coroutine
     def wait_stopped(self):
-        yield from asyncio.wait(self._connectors)
+        yield from asyncio.wait(self._connectors, loop=self._loop)
         while self._tasks:
-            yield from asyncio.wait(self._tasks)
+            yield from asyncio.wait(self._tasks, loop=self._loop)
         log.debug("No connectors and tasks left")
 
     def terminate(self):
