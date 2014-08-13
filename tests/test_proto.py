@@ -14,7 +14,7 @@ def btalk_test(fun):
 
         @asyncio.coroutine
         def full_test():
-            cli = yield from Client.connect('localhost', 11300)
+            cli = yield from Client.connect('localhost', 11300, loop=self.loop)
             try:
                 yield from fun(self, cli)
             finally:
@@ -28,7 +28,8 @@ def btalk_test(fun):
 class TestCase(unittest.TestCase):
 
     def setUp(self):
-        self.loop = asyncio.get_event_loop()
+        asyncio.set_event_loop(None)
+        self.loop = asyncio.new_event_loop()
 
     @btalk_test
     def testPut(self, btalk):

@@ -21,17 +21,19 @@ class ProtocolError(Exception):
 
 class Client(object):
 
-    def __init__(self, reader, writer):
+    def __init__(self, reader, writer, loop=None):
         self._reader = reader
         self._writer = writer
+        self._loop = loop or asyncio.get_event_loop()
         self._queue = deque([])
-        self._task = asyncio.Task(self._reader_task())
+        self._task = asyncio.Task(self._reader_task(), loop=self._loop)
 
     @classmethod
     @asyncio.coroutine
-    def connect(Client, host, port):
-        reader, writer = yield from asyncio.open_connection(host, port)
-        cli =  Client(reader, writer)
+    def connect(Client, host, port, loop=None):
+        reader, writer = yield from asyncio.open_connection(host, port,
+                                                            loop=loop)
+        cli =  Client(reader, writer, loop=loop)
         cli.host = host
         cli.port = port
         return cli
@@ -52,7 +54,7 @@ class Client(object):
         req = b' '.join(chunks) + b'\r\n'
         if body is not None:
             req += body + b'\r\n'
-        fut = asyncio.Future()
+        fut = asyncio.Future(loop=self._loop)
 
         self._writer.write(req)
         self._queue.append(fut)
@@ -96,4 +98,4 @@ class Client(object):
         self._writer.transport.close()
 
     def wait_closed(self):
-        return asyncio.shield(self._task)
+        return asyncio.shield(self._task, loop=self._loop)
