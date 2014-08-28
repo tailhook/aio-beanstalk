@@ -136,7 +136,8 @@ class AbstractWorker(metaclass=abc.ABCMeta):
                 except EOFError:
                     break
         finally:
-            yield from asyncio.wait(self._tasks, loop=self._loop)
+            if self._tasks:
+                yield from asyncio.wait(self._tasks, loop=self._loop)
             cli.close()
 
     @asyncio.coroutine
