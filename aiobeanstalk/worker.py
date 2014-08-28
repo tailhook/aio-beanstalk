@@ -66,8 +66,8 @@ class AbstractWorker(metaclass=abc.ABCMeta):
     @asyncio.coroutine
     def start(self):
         self._terminating = False
-        self._connectors = [asyncio.Task(self._client(
-            host, port, loop=self._loop)) for (host, port) in self.servers]
+        self._connectors = [asyncio.Task(self._client(host, port))
+                            for (host, port) in self.servers]
         self._tasks = set()
         self._current_task = None
 
