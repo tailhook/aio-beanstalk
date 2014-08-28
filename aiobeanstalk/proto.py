@@ -92,7 +92,14 @@ class Client(object):
         finally:
             self._writer.transport.close()
             for f in self._queue:
-                f.set_exception(EOFError())
+                try:
+                    f.set_exception(EOFError())
+                except asyncio.InvalidStateError:
+                    #  This means future is already cancelled by user, so we
+                    #  should not do anything special. I may mean a but in the
+                    #  code, but that is extremely unlikely so we are just
+                    #  silent here
+                    pass
 
     def close(self):
         self._writer.transport.close()

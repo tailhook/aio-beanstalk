@@ -80,6 +80,8 @@ class AbstractWorker(metaclass=abc.ABCMeta):
                 except (OSError, EOFError):
                     log.info("Connection to %s:%d closed. Reconnecting",
                         host, port, exc_info=1)
+        except asyncio.CancelledError:
+            log.info("Client is cancelled")
         except Exception:
             log.exception("Unexpected error in worker loop")
 
