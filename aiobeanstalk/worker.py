@@ -229,20 +229,25 @@ class JsonTaskWorker(AbstractWorker):
             yield from self.tasks[name](*args, **kwargs)
         except Exception:
             if stats['reserves'] > self.retry_times:
-                log.exception("Task %d has failed to much times. Burying...",
-                    reserved.job_id)
+                log.exception(
+                    "Task %d has failed to much times (%d/%d). Burying...",
+                    reserved.job_id, stats['reserves'], self.retry_times)
                 raise Bury()
             else:
-                log.exception("Task %d has failed. Will retry...",
-                    reserved.job_id)
+                delay = self._calc_delay(stats)
+                log.exception("Task %d has failed %d/%d. Will retry in %d...",
+                    reserved.job_id,
+                    stats['reserves'], self.retry_times, delay)
                 raise self.release_task(sig, stats)
 
+    def _calc_delay(self, stats):
+        return self.retry_delay*stats['reserves']
 
     def release_task(self, signature, stats):
         """Adjusts the task priority and delay on failure"""
         # Make lower priority for retried tasks
         # And use exponential delay
-        return Release(stats['pri'] + 1, self.retry_delay**stats['reserves'])
+        return Release(stats['pri'] + 1, self._calc_delay(stats))
 
 
 
