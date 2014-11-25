@@ -127,7 +127,7 @@ class AbstractWorker(metaclass=abc.ABCMeta):
                         if isinstance(task, DeadlineSoon):
                             log.warning("Deadline is soon. Stopping accepting"
                                 " tasks for safety period 1 sec")
-                            yield asyncio.sleep(1, loop=self._loop)
+                            yield from asyncio.sleep(1, loop=self._loop)
                             continue
                         if isinstance(task, TimedOut):
                             continue
