@@ -90,10 +90,11 @@ class AbstractWorker(metaclass=abc.ABCMeta):
         try:
             start = time.time()
             cli = yield from Client.connect(host, port)
-        except OSError:
+        except OSError as e:
             log.warning("Error establishing connection. Will retry...")
             yield from asyncio.sleep(max(0, start + 0.1 - time.time()),
                                      loop=self._loop)
+            raise e
         log.info("Established connection to %s:%s", host, port)
         try:
             for q in self.queues:
